@@ -10,7 +10,7 @@
 #SBATCH --account=kempner_barak_lab
 #SBATCH -o slurm_out/slurm-%j.out # Standard out goes to this file
 #SBATCH -e slurm_out/slurm-%j.out # Standard err goes to this file
-#SBATCH --job-name=grpo_7B    # create a short name for your job
+#SBATCH --job-name=grpo_7B_random    # create a short name for your job
 #SBATCH --exclude=holygpu8a13303
 
 
@@ -58,4 +58,4 @@ export RAY_ADDRESS="$RAY_HEAD_ADDR"
 
 
  
-python3 -m verl.trainer.main_ppo sunny_scripts/grpo_simplerl_qwen_7B.yaml
+python3 -m verl.trainer.main_ppo sunny_scripts/grpo_math_selfdistill_random_7B.yaml
