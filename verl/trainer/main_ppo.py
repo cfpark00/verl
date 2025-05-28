@@ -17,7 +17,7 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 
 from verl import DataProto
 import torch
-from verl.utils.reward_score import gsm8k, math, boxes, guessnumber
+from verl.utils.reward_score import gsm8k, math, boxes, guessnumber, cube
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 import requests
 
@@ -39,6 +39,15 @@ def _default_compute_score(config, data_source, solution_str, ground_truth):
                 return boxes.compute_score(solution_str, ground_truth)
     elif data_source == 'cfpark00/guessnumber':
         return guessnumber.compute_score(solution_str, ground_truth)
+    elif data_source == 'cfpark00/toy-multistep-reasoning':
+        no_pad_solution_str = solution_str.replace("<pad>", "").strip()
+        no_pad_ground_truth = ground_truth.replace("<pad>", "").strip()
+        if no_pad_solution_str.endswith(no_pad_ground_truth):
+            return 1.0
+        else:
+            return 0.0
+    elif data_source == 'cfpark00/cube_v1':
+        return cube.compute_score(solution_str, ground_truth)
     else:
         raise NotImplementedError
 

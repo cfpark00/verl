@@ -44,6 +44,11 @@ class LoadFormat(str, enum.Enum):
 class ModelConfig(ModelConfig):
 
     def __init__(self, hf_config: PretrainedConfig, *args, **kwargs) -> None:
+        #print("#######")
+        #print("#######")
+        #print(hf_config,args,kwargs)
+        #print("#######")
+        #print("#######")
         super().__init__(model=hf_config._name_or_path, tokenizer=hf_config._name_or_path, *args, **kwargs)
         self.hf_config = hf_config
 

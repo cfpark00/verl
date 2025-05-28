@@ -12,6 +12,7 @@ if __name__ == '__main__':
     parser.add_argument('--regen', action='store_true')
     parser.add_argument('--last_only', action='store_true')
     parser.add_argument('--specify_step', type=int, default=None)
+    parser.add_argument('--no_save_hf', action='store_false')
 
     args = parser.parse_args()
     base_dir = args.base_dir
@@ -19,6 +20,8 @@ if __name__ == '__main__':
     dest_dir = args.dest_dir
     regen = args.regen
     last_only = args.last_only
+    specify_step = args.specify_step
+    no_save_hf = args.no_save_hf
     ##
     if "/global_step" in base_dir:
         fols = [base_dir]
@@ -27,8 +30,8 @@ if __name__ == '__main__':
         def get_global_step(fol):
             return int(fol.split('global_step_')[1])
         fols = sorted(fols, key=get_global_step)
-        if args.specify_step is not None:
-            fols = [f for f in fols if get_global_step(f)==args.specify_step]
+        if specify_step is not None:
+            fols = [f for f in fols if get_global_step(f)==specify_step]
     for ifol,fol in enumerate(tqdm.tqdm(fols)):
         if len(glob.glob(os.path.join(fol, 'actor/*.pt')))==0:
             continue
@@ -49,19 +52,21 @@ if __name__ == '__main__':
             ranks.append(rank)
         assert len(set(world_sizes))==1
         world_size = world_sizes[0]
-        #print("World size:",world_size)
-        #print("n_files:",len(weight_files))
-        assert set(ranks)==set(range(world_size))
-        #sort by rank
-        argsort = np.argsort(ranks)
-        weight_files = [weight_files[i] for i in argsort]
-        state_dict = torch.load(weight_files[0],weights_only=False)
-        for k,v in state_dict.items():
-            state_dict[k] = v.to_local()
-        for i in range(1,len(weight_files)):
-            state_dict_i = torch.load(weight_files[i],weights_only=False)
-            for k,v in state_dict_i.items():
-                state_dict[k] = torch.cat([state_dict[k],v.to_local()],dim=0)
+        if world_size!=1:
+            assert set(ranks)==set(range(world_size))
+            #sort by rank
+            argsort = np.argsort(ranks)
+            weight_files = [weight_files[i] for i in argsort]
+            state_dict = torch.load(weight_files[0],weights_only=False)
+            for k,v in state_dict.items():
+                state_dict[k] = v.to_local()
+            for i in range(1,len(weight_files)):
+                state_dict_i = torch.load(weight_files[i],weights_only=False)
+                for k,v in state_dict_i.items():
+                    state_dict[k] = torch.cat([state_dict[k],v.to_local()],dim=0)
+        else:
+            assert len(weight_files)==1
+            state_dict = torch.load(weight_files[0],weights_only=False)
         #save the merged state_dict
         if dest_dir is None:
             save_path = os.path.join(fol, 'actor/state_dict.pt')
@@ -69,4 +74,7 @@ if __name__ == '__main__':
             save_path = os.path.join(dest_dir, f'state_dict_{ifol}.pt')
         torch.save(state_dict, save_path)
         print(f'saved {save_path}')
+
+        #if not no_save_hf:
+
     

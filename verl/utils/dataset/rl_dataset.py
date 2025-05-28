@@ -125,9 +125,14 @@ class RLHFDataset(Dataset):
         # filter out too long prompts
         tokenizer = self.tokenizer
         prompt_key = self.prompt_key
-        self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
-            tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) <= self.max_prompt_length,
-                                                             axis=1)]
+        if self.prompt_key != "raw_prompt":
+            self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
+                tokenizer.apply_chat_template(doc[prompt_key], add_generation_prompt=True)) <= self.max_prompt_length,
+                                                                axis=1)]
+        else:
+            self.dataframe = self.dataframe[self.dataframe.apply(lambda doc: len(
+                tokenizer.encode(doc[prompt_key], add_special_tokens=False)) <= self.max_prompt_length,
+                                                                axis=1)]
         print(f'filter dataset len: {len(self.dataframe)}')
 
     #def undo_all_np_to_list(self):
@@ -151,16 +156,18 @@ class RLHFDataset(Dataset):
         """
         row_dict = self.dataframe.iloc[item].to_dict()
 
-        chat = row_dict.pop(self.prompt_key)
+        if self.prompt_key!="raw_prompt":
+            chat = row_dict.pop(self.prompt_key)
+            prompt = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
+        else:
+            prompt = row_dict.pop("raw_prompt")
+        input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(prompt=prompt,
+                                                                tokenizer=self.tokenizer,
+                                                                max_length=self.max_prompt_length,
+                                                                pad_token_id=self.tokenizer.pad_token_id,
+                                                                left_pad=True,
+                                                                truncation=self.truncation)
 
-        prompt_with_chat_template = self.tokenizer.apply_chat_template(chat, add_generation_prompt=True, tokenize=False)
-
-        input_ids, attention_mask = verl_F.tokenize_and_postprocess_data(prompt=prompt_with_chat_template,
-                                                                         tokenizer=self.tokenizer,
-                                                                         max_length=self.max_prompt_length,
-                                                                         pad_token_id=self.tokenizer.pad_token_id,
-                                                                         left_pad=True,
-                                                                         truncation=self.truncation)
 
         position_ids = compute_position_id_with_mask(attention_mask)
 

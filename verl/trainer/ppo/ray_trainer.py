@@ -144,6 +144,18 @@ def compute_advantage(data: DataProto, adv_estimator, gamma=1.0, lam=1.0, num_re
                                                                         index=index)
         data.batch['advantages'] = advantages
         data.batch['returns'] = returns
+    elif adv_estimator == 'dr_grpo':
+        token_level_rewards = data.batch['token_level_rewards']
+        index = data.non_tensor_batch['uid']
+        responses = data.batch['responses']
+        response_length = responses.size(-1)
+        attention_mask = data.batch['attention_mask']
+        response_mask = attention_mask[:, -response_length:]
+        advantages, returns = core_algos.compute_dr_grpo_outcome_advantage(token_level_rewards=token_level_rewards,
+                                                                        eos_mask=response_mask,
+                                                                        index=index)
+        data.batch['advantages'] = advantages
+        data.batch['returns'] = returns
     elif adv_estimator == 'reinforce_plus_plus':
         token_level_rewards = data.batch['token_level_rewards']
         responses = data.batch['responses']
@@ -367,6 +379,8 @@ class RayPPOTrainer(object):
         if self.config.algorithm.adv_estimator == 'gae':
             self.use_critic = True
         elif self.config.algorithm.adv_estimator == 'grpo':
+            self.use_critic = False
+        elif self.config.algorithm.adv_estimator == 'dr_grpo':
             self.use_critic = False
         elif self.config.algorithm.adv_estimator == 'reinforce_plus_plus':
             self.use_critic = False
@@ -930,7 +944,7 @@ class RayPPOTrainer(object):
                         critic_output_metrics = reduce_metrics(critic_output.meta_info['metrics'])
                         metrics.update(critic_output_metrics)
 
-                    # implement critic warmup
+                    # update actor,   implement critic warmup here
                     if self.config.trainer.critic_warmup <= self.global_steps:
                         # update actor
                         with _timer('update_actor', timing_raw):

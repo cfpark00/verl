@@ -158,6 +158,7 @@ class vLLMRollout(BaseRollout):
         self.eval_temperature = self.config.get('eval_temperature', 0.0)
 
         self.pad_token_id = tokenizer.pad_token_id
+        self.tokenizer = tokenizer
 
     @contextmanager
     def update_sampling_params(self, **kwargs):
@@ -187,7 +188,8 @@ class vLLMRollout(BaseRollout):
         position_ids = prompts.batch['position_ids']
 
         # used to construct attention_mask
-        eos_token_id = prompts.meta_info['eos_token_id']
+        eos_token_id = self.tokenizer.eos_token_id
+        #prompts.meta_info['eos_token_id']
 
         batch_size = idx.size(0)
 
